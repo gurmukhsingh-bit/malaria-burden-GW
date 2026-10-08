@@ -30,7 +30,7 @@ MAIN_IDS = ["location_level", "iso3", "country_name", "state_name"]
 MAIN_COLUMNS = ["blend_live_births", "blend_deaths_all_u5", "blend_deaths_all_{b}",
                 "blend_q_all_{b}", "blend_q_malaria_adj_{b}", "blend_pop_{b}",
                 "blend_malaria_fraction_adj_{b}", "map_pfpr_2_10", "pfpracm_share_{b}",
-                "pfpracm_share_u5", "combined_q_malaria_{b}"]
+                "pfpracm_share_u5", "combined_q_malaria_{b}", "combined_rate_malaria_1_59m"]
 
 SRC_BLEND = "Derived: 50:50 IHME and UN IGME/WPP (Nigerian states: IHME only); see README"
 SRC_ACM = ("Derived: in-house PfPR-ACM model (MIS/DHS project, primary v9) at MAP 2023 PfPR2-10; "
@@ -181,6 +181,23 @@ def main():
                  f"death {Q_DESC.format(band=LABEL[b])}: 0.5 x blend_q_malaria_adj + 0.5 x "
                  f"pfpracm_q_malaria, i.e. 0.5 x ({INDIRECT_MULTIPLIER} x IHME/IGME blend) + "
                  "0.5 x PfPR-ACM (Nigerian states: IHME in place of the blend)", "probability (0-1)")
+    # Annual rate among 1-59-month-olds: for models that consume a per-year mortality rate rather
+    # than per-band probabilities. Built from the deaths columns, which are annual flows, so no
+    # band-duration scaling is needed; dividing by the same source's population cancels the
+    # population scale, leaving the (better-agreed) mortality signal.
+    postneo = BANDS[1:]
+    frac_adj = band("blend_malaria_fraction_adj")
+    pop = band("blend_population")
+    combined_share = 0.5 * frac_adj[postneo] + 0.5 * share[postneo]
+    malaria_deaths_1_59m = (blend_deaths[postneo] * combined_share).sum(axis=1, min_count=len(postneo))
+    cols.add("combined_rate_malaria_1_59m", malaria_deaths_1_59m
+             / pop[postneo].sum(axis=1, min_count=len(postneo)), SRC_COMBINED,
+             "Annual malaria-attributable mortality rate among 1-59-month-olds (direct and indirect): "
+             "sum over the four post-neonatal bands of blend_deaths_all x (0.5 x "
+             "blend_malaria_fraction_adj + 0.5 x pfpracm_share), divided by the summed band "
+             "populations. x 1,000 = malaria deaths per 1,000 children aged 1-59 months per year. "
+             "No band-duration scaling is needed (the deaths columns are per year), and the "
+             "population scale cancels in the division", "deaths per child-year (0-1)")
     flag = band("pfpracm_outside_central95").astype(float)
     cols.add("pfpracm_outside_central95", flag.max(axis=1, skipna=True).map({1.0: True, 0.0: False}),
              SRC_ACM, "TRUE if the location's PfPR is outside the central 95% of the PfPR values the "

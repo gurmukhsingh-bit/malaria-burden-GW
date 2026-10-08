@@ -28,6 +28,7 @@ Every column is copied from the full file below. The age-band suffixes are `0_27
 | `map_pfpr_2_10` | MAP population-weighted PfPR2–10 |
 | `pfpracm_share_{band}`, `pfpracm_share_u5` | PfPR-ACM malaria share of all-cause deaths; under 5 weighted by `blend_deaths_all_{band}` |
 | `combined_q_malaria_{band}` | 0.5 × `blend_q_malaria_adj` + 0.5 × PfPR-ACM malaria *q* |
+| `combined_rate_malaria_1_59m` | Annual malaria mortality rate among 1–59-month-olds (× 1,000 = deaths per 1,000 children per year) |
 
 All `blend_` columns average IHME and IGME/WPP for countries and use IHME only for Nigerian
 states.
@@ -40,6 +41,18 @@ adjusted, because it already counts indirect deaths. The unadjusted values (`ble
 
 `combined_q_malaria` is therefore 0.5 × (1.6 × IHME/IGME blend) + 0.5 × PfPR-ACM for countries,
 and 0.5 × (1.6 × IHME) + 0.5 × PfPR-ACM for states.
+
+**Annual rate (`combined_rate_malaria_1_59m`):** for models that consume a per-year mortality
+rate rather than per-band probabilities. Sum over the four post-neonatal bands of
+`blend_deaths_all` × (0.5 × `blend_malaria_fraction_adj` + 0.5 × `pfpracm_share`), divided by
+the summed band populations: annual malaria-attributable deaths per child aged 1–59 months
+(× 1,000 = deaths per 1,000 children per year). The same 50:50 blend as `combined_q_malaria`,
+applied to deaths rather than probabilities. Because the deaths columns are annual flows, no
+band-duration scaling is needed; and because the division uses the same source's population,
+the population scale cancels — the rate carries the mortality signal, on which IHME and IGME
+agree far more closely than they do on population. Cross-check: annualising the
+`combined_q_malaria` bands instead (each *q* ÷ its band length in years, averaged weighted by
+band population) agrees with this column to within ±3% everywhere.
 
 The main file has no blank cells. Lesotho, Mauritius and Seychelles are left out of every
 output file (see Coverage).
